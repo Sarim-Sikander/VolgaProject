@@ -1,4 +1,4 @@
-# Transcription Pipeline — Design & Decisions
+# Transcription Pipeline - Design & Decisions
 
 A small but complete transcription pipeline: it takes an audio file, converts it
 to text with **per-segment timestamps** (Whisper), and then runs a **downstream
@@ -21,8 +21,8 @@ audio file
 
 | Layer | File(s) | Responsibility |
 |-------|---------|----------------|
-| Entry — API | `main.py`, `app/core/server.py` | Uvicorn + app factory |
-| Entry — CLI | `cli.py` | Same pipeline from the command line |
+| Entry - API | `main.py`, `app/core/server.py` | Uvicorn + app factory |
+| Entry - CLI | `cli.py` | Same pipeline from the command line |
 | Routing | `app/api/api.py`, `app/api/endpoints/transcription.py` | HTTP endpoints |
 | Orchestration | `app/controllers/transcription.py` | Ties the steps together |
 | Wiring (DI) | `app/core/factory/factory.py` | Builds controllers + integrations |
@@ -35,15 +35,15 @@ audio file
 ## Design decisions
 
 ### 1. A two-stage pipeline: Whisper for STT, Ollama for downstream
-The prompt has two halves — *"convert audio to text"* **and** *"process the
+The prompt has two halves - *"convert audio to text"* **and** *"process the
 result for downstream use."* Those are different problems, so they use different
 tools. Ollama runs text LLMs and **cannot transcribe audio**, so it can't be the
 transcriber; Whisper is the right tool for speech-to-text. Ollama is then a
-natural fit for the *downstream* half — it takes the transcript and produces a
+natural fit for the *downstream* half - it takes the transcript and produces a
 summary and a cleaned-up version. This keeps a local, no-API-key stack end to end.
 
 ### 2. Why `faster-whisper`
-Over the alternatives: it's a CTranslate2 reimplementation of OpenAI Whisper —
+Over the alternatives: it's a CTranslate2 reimplementation of OpenAI Whisper -
 roughly **4× faster** and lighter on memory than the reference `openai-whisper`,
 runs on **CPU or GPU**, and (unlike `whisper.cpp`) is pure-Python to integrate.
 Crucially, it returns **segments with timestamps built in**, so the "timestamps
@@ -72,7 +72,7 @@ plus a concatenated `full_text`.
 ### 6. Handling different audio formats
 faster-whisper decodes through **PyAV** (the ffmpeg libraries shipped as Python
 wheels), so WAV / MP3 / M4A / FLAC / OGG all work **with no separate ffmpeg
-install**, and everything is resampled to 16 kHz mono internally — exactly what
+install**, and everything is resampled to 16 kHz mono internally, exactly what
 Whisper expects. So there's no per-format branching; the allowlist exists only to
 give a clean early error.
 
@@ -87,7 +87,7 @@ that step moves to chunked (map-reduce) summarization.
 
 ### 8. Hardware / GPU with automatic fallback
 `WHISPER_DEVICE=auto` tries CUDA first and **falls back to CPU (int8)** if the
-GPU or its cuDNN libraries aren't available — at build time *and* at runtime — so
+GPU or its cuDNN libraries aren't available at build time *and* at runtime, so
 the same code runs on any machine. Model size and compute type are configurable.
 
 ### 9. Downstream model choice, VRAM, and `num_ctx`
@@ -105,8 +105,8 @@ return the full transcript + timestamps; `summary`/`cleaned_text` come back
 `null` and a warning is written to stderr. A failed summary never fails the job.
 
 ### 11. Config-driven
-Everything tunable — model sizes, device, compute type, Ollama URL/model,
-context length, downstream on/off — lives in typed settings (`.env`), so no code
+Everything tunable model sizes, device, compute type, Ollama URL/model,
+context length, downstream on/off lives in typed settings (`.env`), so no code
 change is needed to move between a laptop and a GPU box.
 
 ---
@@ -171,4 +171,4 @@ job queue + worker pool so uploads are processed asynchronously (and GPU
 concurrency is bounded to avoid the OOM above); object storage for audio and a
 database for transcripts; a job state machine with retries/backoff and a
 dead-letter queue; and auth + rate limiting on the API. Accuracy scales with the
-Whisper model size (`tiny` → `large-v3`) via a single config value.
+Whisper model size (`tiny`, `large-v3`) via a single config value.
